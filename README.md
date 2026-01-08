@@ -52,7 +52,7 @@ Create a `.env` file in the root directory (or set these in Railway) based on `.
 1.  **Clone the repository:**
     ```bash
     git clone [https://github.com/oshergluck/UltimateDeAl-Backend-Mongo-And-Emails](https://github.com/oshergluck/UltimateDeAl-Backend-Mongo-And-Emails)
-    cd your-repo-name
+    cd UltimateDeAl-Backend-Mongo-And-Emails
     ```
 
 2.  **Install dependencies:**
