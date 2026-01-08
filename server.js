@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { ethers } = require('ethers');
 const Web3 = require('web3');
-const { Resend } = require('resend'); // שימוש בספריית Resend הרשמית
+const { Resend } = require('resend');
 const { initializeServer, getContracts } = require('./contractConfigGenerator');
 require('dotenv').config();
 const fs = require('fs');
@@ -26,7 +26,6 @@ app.use(cors({
     origin: function (origin, callback) {
         if (!origin) return callback(null, true);
         if (allowedOrigins.indexOf(origin) === -1) {
-            // במקום לחסום, נחזיר true זמנית כדי למנוע בעיות חיבור, או שתשאיר את השגיאה
             return callback(null, true); 
         }
         return callback(null, true);
@@ -38,10 +37,10 @@ app.use(cors({
 const MONGO_URI = process.env.MONGO_URI;
 const SERVER_PRIVATE_KEY = process.env.SERVER_PRIVATE_KEY;
 const WEBSOCKET_URL_API = process.env.WEBSOCKET_URL_API;
-const EMAIL_API_KEY = process.env.EMAILP; // מפתח ה-API של Resend (מתחיל ב-re_)
+const EMAIL_API_KEY = process.env.EMAILP; 
 const PORT = process.env.PORT || 5000;
 
-// אתחול Resend API (במקום Nodemailer)
+// אתחול Resend API
 const resend = new Resend(EMAIL_API_KEY);
 
 // --- הגדרת Volume ו-Data Directory ---
@@ -83,6 +82,7 @@ mongoose
   .catch((err) => console.error('MongoDB error', err));
 
 // --- Schemas ---
+
 const ClientSchema = new mongoose.Schema({
   walletAddress: { type: String, required: true },
   storeContractAddress: { type: String, required: true },
@@ -91,7 +91,7 @@ const ClientSchema = new mongoose.Schema({
   phone: String,
   physicalAddress: String,
   registeredAt: { type: Date, default: Date.now },
-  lastEmailSent: { type: Date } // <--- שדה חדש למניעת ספאם
+  lastEmailSent: { type: Date }
 });
 
 ClientSchema.index({ walletAddress: 1, storeContractAddress: 1 }, { unique: true });
@@ -103,8 +103,21 @@ const StoreSchema = new mongoose.Schema({
   registeredAt: { type: Date, default: Date.now },
 });
 
+// --- Schema חדשה להזמנות (CQRS) ---
+const OrderSchema = new mongoose.Schema({
+  receiptId: { type: Number, required: true, unique: true },
+  clientAddress: { type: String, required: true, index: true },
+  storeContractAddress: String,
+  productBarcode: String,
+  productName: String,
+  price: Number,
+  timestamp: Number,
+  isRefunded: { type: Boolean, default: false }
+});
+
 const Client = mongoose.model('Client', ClientSchema);
 const Store = mongoose.model('Store', StoreSchema);
+const Order = mongoose.model('Order', OrderSchema);
 
 const signerWallet = new ethers.Wallet(SERVER_PRIVATE_KEY);
 
@@ -115,7 +128,7 @@ const web3 = new Web3(
   })
 );
 
-// --- פונקציית שליחת אימייל חדשה (HTTP API) ---
+// --- פונקציית שליחת אימייל ---
 async function sendEmail(to, subject, text) {
   if (!to || !String(to).includes('@')) {
       console.log(`Skipping email, invalid address: ${to}`);
@@ -124,10 +137,10 @@ async function sendEmail(to, subject, text) {
   
   try {
     const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL, // וודא שזה הדומיין שאימתת ב-Resend
+      from: process.env.EMAIL,
       to: [to],
       subject: subject,
-      text: text, // אפשר להוסיף גם html: אם תרצה
+      text: text,
     });
 
     if (error) {
@@ -158,16 +171,8 @@ app.get('/', (req, res) => {
 
 app.get('/api/check/:wallet', async (req, res) => {
   try {
-    // אם לא נשלח storeAddress, מחזיר false ליתר ביטחון או מחפש כללי (לבחירתך)
-    // כאן נניח שאנחנו צריכים חנות, אבל אם הפרונט לא שולח, זה יחזיר ריק
-    // בקוד הריאקט הוספנו לוגיקה, אז זה אמור לעבוד אם הפרונט מעודכן
-    
-    // הערה: בקוד הריאקט החדש שביקשת לא ראיתי ששינית את הקריאה ל-fetch להוסיף storeAddress ב-params
-    // אז נשאיר את זה גמיש: נחזיר את הראשון שנמצא או נתקן בהמשך
-    
     const client = await Client.findOne({
       walletAddress: { $regex: new RegExp('^' + req.params.wallet + '$', 'i') }
-      // storeContractAddress: ... (אם הפרונט ישלח בעתיד)
     });
     
     res.json({ isRegistered: !!client, clientData: client });
@@ -176,15 +181,46 @@ app.get('/api/check/:wallet', async (req, res) => {
   }
 });
 
-app.delete('/api/unregister/:wallet', async (req, res) => {
-  try {
-    await Client.findOneAndDelete({
-      walletAddress: { $regex: new RegExp('^' + req.params.wallet + '$', 'i') }
-    });
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+// --- מחיקת הרשמה מאובטחת (חתימה + Timestamp) ---
+app.post('/api/unregister', async (req, res) => {
+    const { walletAddress, signature, timestamp } = req.body;
+
+    if (!walletAddress || !signature || !timestamp) {
+        return res.status(400).json({ error: 'Missing parameters' });
+    }
+
+    try {
+        // 1. בדיקת זמנים - למנוע Replay Attack (חלון של 5 דקות)
+        const timeDiff = Math.abs(Date.now() - timestamp);
+        if (timeDiff > 5 * 60 * 1000) {
+            return res.status(400).json({ error: 'Signature expired' });
+        }
+
+        // 2. שחזור הכתובת מהחתימה
+        const message = `I confirm that I want to delete my account: ${walletAddress.toLowerCase()} at ${timestamp}`;
+        const recoveredAddress = ethers.verifyMessage(message, signature);
+
+        // 3. אימות שהחותם הוא הבעלים
+        if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+            return res.status(401).json({ error: 'Invalid signature. You are not the owner.' });
+        }
+
+        // 4. ביצוע המחיקה
+        const result = await Client.deleteMany({
+            walletAddress: { $regex: new RegExp('^' + walletAddress + '$', 'i') }
+        });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        console.log(`User ${walletAddress} securely unregistered.`);
+        res.json({ success: true });
+
+    } catch (error) {
+        console.error('Unregister error:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 
 app.post('/api/register-store', async (req, res) => {
@@ -238,11 +274,33 @@ app.post('/api/store/get-client-details', async (req, res) => {
   }
 });
 
+// --- Endpoint מאובטח לשליפת הזמנות לבעל החנות ---
+app.post('/api/store/get-client-orders', async (req, res) => {
+    const { storeAddress, password, clientAddress } = req.body;
+
+    try {
+        const store = await Store.findOne({ smartContractAddress: storeAddress });
+        if (!store) return res.status(404).json({ error: 'Store not found' });
+
+        const isMatch = await bcrypt.compare(password, store.passwordHash);
+        if (!isMatch) return res.status(401).json({ error: 'Invalid Password' });
+
+        const orders = await Order.find({ 
+            clientAddress: clientAddress.toLowerCase(),
+            storeContractAddress: { $regex: new RegExp('^' + storeAddress + '$', 'i') }
+        }).sort({ timestamp: -1 });
+
+        res.json({ success: true, orders });
+
+    } catch (error) {
+        console.error('Error fetching client orders:', error);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 app.post('/api/sign-purchase', async (req, res) => {
   const { walletAddress, productBarcode, amount } = req.body;
   try {
-    // בגלל שאין לנו כאן storeAddress מהפרונט הישן, נחפש לקוח כלשהו עם הארנק הזה
-    // עדיף לתקן את הפרונט לשלוח storeAddress, אבל זה יעבוד כרגע
     const client = await Client.findOne({
       walletAddress: { $regex: new RegExp('^' + walletAddress + '$', 'i') }
     });
@@ -267,6 +325,30 @@ app.post('/api/sign-purchase', async (req, res) => {
   }
 });
 
+// --- Endpoint לשליפת כל הלקוחות של החנות (עבור רשימת תפוצה/אימיילים) ---
+app.post('/api/store/get-all-clients', async (req, res) => {
+  const { storeAddress, password } = req.body;
+  try {
+    // 1. אימות חנות
+    const store = await Store.findOne({ smartContractAddress: storeAddress });
+    if (!store) return res.status(404).json({ error: 'Store not found' });
+
+    // 2. אימות סיסמה
+    const isMatch = await bcrypt.compare(password, store.passwordHash);
+    if (!isMatch) return res.status(401).json({ error: 'Invalid Password' });
+
+    // 3. שליפת כל הלקוחות ששייכים לחנות הזו
+    const clients = await Client.find({
+      storeContractAddress: { $regex: new RegExp('^' + storeAddress + '$', 'i') }
+    }).select('name email walletAddress phone'); // מחזירים רק פרטים רלוונטיים
+
+    res.json({ success: true, clients });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 app.post('/api/register', async (req, res) => {
   const { walletAddress, name, email, phone, physicalAddress, storeAddress } = req.body;
   
@@ -275,23 +357,20 @@ app.post('/api/register', async (req, res) => {
   }
 
   try {
-    // 1. בדיקה מקדימה - האם הלקוח קיים והאם שלחנו לו מייל לאחרונה?
     const existingClient = await Client.findOne({ 
         walletAddress: { $regex: new RegExp('^' + walletAddress + '$', 'i') },
         storeContractAddress: { $regex: new RegExp('^' + storeAddress + '$', 'i') }
     });
 
-    // אם נשלח מייל ב-60 שניות האחרונות, נדלג על השליחה אבל נחזיר הצלחה
     let shouldSendEmail = true;
     if (existingClient && existingClient.lastEmailSent) {
         const timeDiff = Date.now() - new Date(existingClient.lastEmailSent).getTime();
-        if (timeDiff < 60000) { // 60000ms = 1 minute
+        if (timeDiff < 60000) { 
             console.log(`Skipping email for ${email} - already sent in the last minute.`);
             shouldSendEmail = false;
         }
     }
 
-    // 2. עדכון הלקוח בדאטה-בייס
     const updateData = { 
         walletAddress, 
         name, 
@@ -301,7 +380,6 @@ app.post('/api/register', async (req, res) => {
         storeContractAddress: storeAddress 
     };
 
-    // אם אנחנו מתכוונים לשלוח מייל עכשיו, נעדכן את הטיימר
     if (shouldSendEmail) {
         updateData.lastEmailSent = new Date();
     }
@@ -315,7 +393,6 @@ app.post('/api/register', async (req, res) => {
       { new: true, upsert: true }
     );
 
-    // 3. שליחת האימייל (רק אם מותר)
     if (storeAddress && shouldSendEmail) {
       try {
         const contracts = getContracts();
@@ -344,7 +421,6 @@ Phone: ${phone}
 Wallet: ${walletAddress}
 `;
 
-          // שליחה במקביל כדי לחסוך זמן
           await Promise.all([
             sendEmail(email, `Welcome to ${contractConfig.companyName}!`, clientEmailContent),
             sendEmail(contractConfig.companyEmail, `New Client Registration - ${name}`, companyEmailContent)
@@ -363,7 +439,8 @@ Wallet: ${walletAddress}
     res.status(500).json({ error: error.message });
   }
 });
-// --- Web3 Logic & Persistance ---
+
+// --- Web3 Logic & Persistence ---
 
 function loadJsonSafe(filePath, fallback) {
   try {
@@ -702,9 +779,8 @@ async function handleNewProductAdditions(eventData, contractConfig) {
     const discountedPrice = (price * (100 - disc)) / 100;
     const description = (eventData.description || '').toString().replace(/[$~*^]/g, '');
 
-    // Resend מאפשר שליחה לכמה נמענים במערך (bcc מומלץ)
     await sendEmail(
-      EMAIL_USER, // שליחה לעצמנו ו-BCC לכולם
+      process.env.EMAIL, 
       `New Product: ${eventData.barcode} Now Available!`,
       `Hello,
 
@@ -723,8 +799,7 @@ Visit https://www.Ultrashop.tech/shop/${contractConfig.companyUrl}/products/${ev
 Best regards,
 ${contractConfig.companyName} Team`
     );
-    // note: sendEmail helper wrapper handles single 'to', you might want to adjust it for bcc if using resend array
-    // for simplicity here we just logged. In production update sendEmail to support bcc.
+    
     console.log(`Product announcement processed for ${clients.length} clients.`);
   } catch (error) {
     console.error('Handler error:', error);
@@ -734,6 +809,24 @@ ${contractConfig.companyName} Team`
 async function handleProductSales(eventData, contractConfig, senderAddress) {
   try {
     const walletToSearch = eventData.clientAddress || senderAddress;
+    
+    // --- Indexing Order to MongoDB (CQRS) ---
+    try {
+        await Order.create({
+            receiptId: Number(eventData.receiptId),
+            clientAddress: walletToSearch.toLowerCase(),
+            storeContractAddress: contractConfig.address,
+            productBarcode: eventData.productBarcode,
+            productName: (eventData.ProductDesc || eventData.description || '').replace(/[$~*^]/g, ''),
+            price: Number(eventData.amountPaid) / 1e6,
+            timestamp: Number(eventData.timestamp)
+        });
+        console.log(`✅ Order ${eventData.receiptId} indexed to MongoDB`);
+    } catch (dbError) {
+        console.error('Failed to save order to DB:', dbError.message);
+    }
+    // ----------------------------------------
+
     const client = await getClientFromDB(walletToSearch, contractConfig.address);
 
     if (!client || !client.email) {
@@ -792,6 +885,19 @@ Please process the order.`
 async function handleRefund(eventData, contractConfig, senderAddress) {
   try {
     const client = await getClientFromDB(eventData.clientAddress || senderAddress, contractConfig.address);
+    
+    // --- Update MongoDB Order Status ---
+    try {
+        await Order.updateOne(
+            { receiptId: Number(eventData.receiptId) },
+            { isRefunded: true }
+        );
+        console.log(`✅ Order ${eventData.receiptId} marked as refunded in DB`);
+    } catch (dbError) {
+        console.error('Failed to update refund status in DB:', dbError.message);
+    }
+    // -----------------------------------
+
     if (!client || !client.email) return;
 
     const refundAmount = Number(eventData.refundAmount || 0);
@@ -969,14 +1075,31 @@ const eventHandlers = {
 };
 
 // --- ריסטארט אוטומטי לניקוי זיכרון ---
+// --- ריסטארט אוטומטי לניקוי זיכרון ---
 const RESTART_INTERVAL = 60 * 60 * 1000; // 1 שעה
 
-setTimeout(() => {
-    console.log('⏰ Hourly restart triggered. Exiting...');
-    if (web3 && web3.currentProvider && web3.currentProvider.disconnect) {
-        web3.currentProvider.disconnect();
+setTimeout(async () => {
+    console.log('⏰ Hourly restart triggered. Starting cleanup...');
+
+    try {
+        // 1. ניתוק יזום של MongoDB
+        if (mongoose.connection.readyState !== 0) {
+            await mongoose.disconnect();
+            console.log('✅ MongoDB disconnected.');
+        }
+
+        // 2. ניתוק יזום של Web3 WebSocket
+        if (web3 && web3.currentProvider && web3.currentProvider.disconnect) {
+            web3.currentProvider.disconnect();
+            console.log('✅ Web3 WebSocket disconnected.');
+        }
+    } catch (error) {
+        console.error('⚠️ Error during cleanup:', error);
+    } finally {
+        console.log('💀 Killing process now.');
+        // שימוש ב-1 במקום 0 כדי להבטיח ש-Railway יבין שצריך להפעיל מחדש (Restart Policy)
+        process.exit(1); 
     }
-    process.exit(0); 
 }, RESTART_INTERVAL);
 
 app.listen(PORT, '0.0.0.0', async () => {
