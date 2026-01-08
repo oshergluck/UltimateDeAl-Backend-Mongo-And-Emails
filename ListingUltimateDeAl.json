@@ -1,0 +1,1044 @@
+[
+    {
+        "inputs": [],
+        "stateMutability": "nonpayable",
+        "type": "constructor"
+    },
+    {
+        "inputs": [],
+        "name": "LastTryOfReviewestore",
+        "outputs": [
+            {
+                "internalType": "contract IUltimateDealStore",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            },
+            {
+                "internalType": "uint8",
+                "name": "_stars",
+                "type": "uint8"
+            },
+            {
+                "internalType": "string",
+                "name": "_text",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_receiptId",
+                "type": "uint256"
+            }
+        ],
+        "name": "addStoreReview",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_newOwner",
+                "type": "address"
+            }
+        ],
+        "name": "changeOwner",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "checker",
+                "type": "address"
+            }
+        ],
+        "name": "checkListingOwnerShip",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "checker",
+                "type": "address"
+            },
+            {
+                "internalType": "uint256",
+                "name": "Id",
+                "type": "uint256"
+            }
+        ],
+        "name": "checkListingOwnerShipWithId",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_smartContractAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_picture",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_name",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_category",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_contactInfo",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_city",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_votingSystemAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_ERCUltra",
+                "type": "address"
+            }
+        ],
+        "name": "editOfficialStore",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_picture",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_name",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_category",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_contactInfo",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_storeOwner",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_city",
+                "type": "string"
+            }
+        ],
+        "name": "editStore",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getAllERCUltras",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getAllStores",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "string",
+                        "name": "urlPath",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "smartContractAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "picture",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "hidden",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "category",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "creationDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "contactInfo",
+                        "type": "string"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.Store[]",
+                "name": "",
+                "type": "tuple[]"
+            },
+            {
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "votingSystemAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "ERCUltra",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "invoicesOfStore",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "city",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "storeOwner",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "encrypted",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.StoreVoting[]",
+                "name": "",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getPromotedStores",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "string",
+                        "name": "urlPath",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "smartContractAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "picture",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "hidden",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "category",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "creationDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "contactInfo",
+                        "type": "string"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.Store[]",
+                "name": "",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getRecentStores",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "string",
+                        "name": "urlPath",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "smartContractAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "picture",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "hidden",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "category",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "creationDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "contactInfo",
+                        "type": "string"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.Store[]",
+                "name": "",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "getStoreAddress",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "getStoreAverageRating",
+        "outputs": [
+            {
+                "internalType": "uint8",
+                "name": "",
+                "type": "uint8"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "getStoreByURLPath",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "string",
+                        "name": "urlPath",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "smartContractAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "picture",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "hidden",
+                        "type": "bool"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "name",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "description",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "category",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "creationDate",
+                        "type": "uint256"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "contactInfo",
+                        "type": "string"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.Store",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "getStoreReviewCount",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "getStoreReviews",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "reviewer",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "uint8",
+                        "name": "stars",
+                        "type": "uint8"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "text",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "uint256",
+                        "name": "receiptId",
+                        "type": "uint256"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.StoreReview[]",
+                "name": "",
+                "type": "tuple[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address[]",
+                "name": "_storeOwners",
+                "type": "address[]"
+            }
+        ],
+        "name": "getStoreURLsByOwners",
+        "outputs": [
+            {
+                "internalType": "string[]",
+                "name": "",
+                "type": "string[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "getStoreVotingSystem",
+        "outputs": [
+            {
+                "components": [
+                    {
+                        "internalType": "address",
+                        "name": "votingSystemAddress",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "ERCUltra",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "invoicesOfStore",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "string",
+                        "name": "city",
+                        "type": "string"
+                    },
+                    {
+                        "internalType": "address",
+                        "name": "storeOwner",
+                        "type": "address"
+                    },
+                    {
+                        "internalType": "bool",
+                        "name": "encrypted",
+                        "type": "bool"
+                    }
+                ],
+                "internalType": "struct ListingUltimateDeAl.StoreVoting",
+                "name": "",
+                "type": "tuple"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "getVisibleStoreOwners",
+        "outputs": [
+            {
+                "internalType": "address[]",
+                "name": "",
+                "type": "address[]"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            }
+        ],
+        "name": "hasReviewed",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "address",
+                "name": "_user",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "hasUserReviewedStore",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "hideStore",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "instance",
+        "outputs": [
+            {
+                "internalType": "contract IUltimateDealStore",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "_receiptId",
+                "type": "uint256"
+            }
+        ],
+        "name": "isReceiptUsed",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "officialStore",
+        "outputs": [
+            {
+                "internalType": "string",
+                "name": "urlPath",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "smartContractAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "picture",
+                "type": "string"
+            },
+            {
+                "internalType": "bool",
+                "name": "hidden",
+                "type": "bool"
+            },
+            {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "category",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "creationDate",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "contactInfo",
+                "type": "string"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [],
+        "name": "owner",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_smartContractAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_picture",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_name",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_category",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_contactInfo",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "_receiptId",
+                "type": "uint256"
+            },
+            {
+                "internalType": "string",
+                "name": "_city",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_votingSystemAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_ERCUltra",
+                "type": "address"
+            }
+        ],
+        "name": "registerStore",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_smartContractAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "string",
+                "name": "_picture",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_name",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_description",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_category",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_contactInfo",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "_city",
+                "type": "string"
+            },
+            {
+                "internalType": "address",
+                "name": "_votingSystemAddress",
+                "type": "address"
+            },
+            {
+                "internalType": "address",
+                "name": "_ERCUltra",
+                "type": "address"
+            }
+        ],
+        "name": "setOfficialStore",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "setUnsetIfEncrypted",
+        "outputs": [
+            {
+                "internalType": "bool",
+                "name": "",
+                "type": "bool"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "name": "storeReviews",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "reviewer",
+                "type": "address"
+            },
+            {
+                "internalType": "uint8",
+                "name": "stars",
+                "type": "uint8"
+            },
+            {
+                "internalType": "string",
+                "name": "text",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "receiptId",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "_urlPath",
+                "type": "string"
+            }
+        ],
+        "name": "unhideStore",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+]

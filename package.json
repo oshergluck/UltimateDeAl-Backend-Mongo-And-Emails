@@ -1,0 +1,24 @@
+{
+  "name": "mongo-emails-server",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "axios": "^1.13.2",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.16.0",
+    "express": "^5.2.1",
+    "fs": "^0.0.1-security",
+    "mongoose": "^8.21.0",
+    "nodemailer": "^7.0.12",
+    "path": "^0.12.7",
+    "resend": "^2.0.0",
+    "web3": "^1.10.4",
+    "web3-providers-ws": "^4.0.8"
+  }
+}
