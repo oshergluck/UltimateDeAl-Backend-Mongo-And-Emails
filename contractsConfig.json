@@ -1171,7 +1171,7 @@
     "eventHandlers": {}
   },
   {
-    "address": "0x43aB9a1D8dBa00c91C5aF46952f7777f78E5108D",
+    "address": "0x8A7120B4E5C6d37628464deB6139542cB7eCbF97",
     "abi": [
       {
         "inputs": [
@@ -2241,8 +2241,8 @@
     ],
     "secretKey": "IK8qT1dh7ZXbE74YMCRAAfCTWuU/os4G13M2a9UTlIcIJjI7VT3XmVbB3udJYeZnjD5ULi7nN9HNd0QldzFggQ==\nVTJGc2RHVmtYMSthQUVISUltZ3VaWVJZRzlRUVZzVit1L2Rsd2dORm9LND0=",
     "companyName": "UltraShop",
-    "companyEmail": "support@ultrashop.tech",
-    "companyUrl": "mainshop",
+    "companyEmail": "spitfire520@gmail.com",
+    "companyUrl": "ultrashop",
     "eventHandlers": {}
   }
 ]
