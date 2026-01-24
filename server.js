@@ -37,7 +37,12 @@ const allowedOrigins = [
 ];
 const RATE_LIMIT_WINDOW_MS = Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000);
 const RATE_LIMIT_MAX_IP = Number(process.env.RATE_LIMIT_MAX_IP || 60);
+// -------------------- 10-min refresh + subscription guard --------------------
+const CONFIG_REFRESH_MS = 10 * 60 * 1000; // 10 minutes
+let refreshingConfigs = false;
 
+// Track which contract addresses are already subscribed (prevents duplicates)
+const activeSubscriptions = new Map(); // addressLower -> Array(subscriptions)
 const accessLimiterIP = rateLimit({
   windowMs: RATE_LIMIT_WINDOW_MS,
   max: RATE_LIMIT_MAX_IP,
@@ -126,6 +131,15 @@ const AccessNonceSchema = new mongoose.Schema({
   purpose: { type: String, default: "user" }, // "user" | "admin"
   storeAddress: { type: String },
 });
+
+function requireAllowedOrigin(req, res) {
+  const origin = req.headers.origin;
+  if (!origin || !allowedOrigins.includes(origin)) {
+    res.status(403).json({ error: 'Bad origin' });
+    return null;
+  }
+  return origin;
+}
 
 app.post("/api/admin/challenge", accessLimiterIP, walletLimiter, async (req, res) => {
   const origin = requireAllowedOrigin(req, res);
@@ -333,15 +347,6 @@ function normAddr(a) {
   return String(a || '').trim().toLowerCase();
 }
 
-function requireAllowedOrigin(req, res) {
-  const origin = req.headers.origin;
-  if (!origin || !allowedOrigins.includes(origin)) {
-    res.status(403).json({ error: 'Bad origin' });
-    return null;
-  }
-  return origin;
-}
-
 
 // wallet-based limiter (simple in-memory)
 const walletHits = new Map();
@@ -380,30 +385,50 @@ const web3 = new Web3(
   })
 );
 
-// --- פונקציית שליחת אימייל ---
+const EMAIL_SPACING_MS = 1000; // 1 second per email (your requirement)
+let lastEmailSentAt = 0;
+let emailQueue = Promise.resolve();
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function sendEmail(to, subject, text) {
-  if (!to || !String(to).includes('@')) {
-      console.log(`Skipping email, invalid address: ${to}`);
-      return;
+  if (!to || !String(to).includes("@")) {
+    console.log(`Skipping email, invalid address: ${to}`);
+    return;
   }
-  
-  try {
-    const { data, error } = await resend.emails.send({
-      from: process.env.EMAIL,
-      to: [to],
-      subject: subject,
-      text: text,
+
+  // Enqueue every email send to ensure spacing globally
+  emailQueue = emailQueue.then(async () => {
+      // Ensure 1s spacing since the last send
+      const now = Date.now();
+      const waitMs = Math.max(0, EMAIL_SPACING_MS - (now - lastEmailSentAt));
+      if (waitMs > 0) await sleep(waitMs);
+
+      try {
+        const { data, error } = await resend.emails.send({
+          from: process.env.EMAIL,
+          to: [to],
+          subject,
+          text,
+        });
+
+        if (error) {
+          console.error("Resend API Error:", error);
+          return;
+        }
+
+        lastEmailSentAt = Date.now();
+        console.log(`Email sent successfully to ${to}, ID: ${data.id}`);
+      } catch (err) {
+        console.error("Email sending failed:", err);
+      }
+    })
+    .catch((e) => {
+      // keep queue alive even if one email fails
+      console.error("Email queue error:", e);
     });
 
-    if (error) {
-      console.error('Resend API Error:', error);
-      return;
-    }
-
-    console.log(`Email sent successfully to ${to}, ID: ${data.id}`);
-  } catch (err) {
-    console.error('Email sending failed:', err);
-  }
+  return emailQueue;
 }
 
 // Helper: Get client specific to a store
@@ -568,7 +593,7 @@ app.post('/api/access-hidden-content', accessLimiterIP, walletLimiter, async (re
 
     // 8) Fetch hidden content from DB (store bound)
     const content = await HiddenContent.findOne({
-      storeContractAddress: storeAddress,
+      storeContractAddress: normAddr(storeAddress),
       productBarcode: productBarcode
     });
 
@@ -592,57 +617,74 @@ app.post('/api/access-hidden-content', accessLimiterIP, walletLimiter, async (re
 
 app.get('/api/check/:wallet', async (req, res) => {
   try {
+    const wallet = String(req.params.wallet || '').trim();
+    const storeAddress = String(req.query.storeAddress || '').trim();
+
+    if (!normAddr(wallet)) return res.status(400).json({ error: "Missing wallet" });
+    if (!normAddr(storeAddress)) return res.status(400).json({ error: "Missing storeAddress" });
+
     const client = await Client.findOne({
-      walletAddress: { $regex: new RegExp('^' + req.params.wallet + '$', 'i') }
-    });
-    
-    res.json({ isRegistered: !!client, clientData: client });
+      walletAddress: { $regex: new RegExp(`^${normAddr(wallet)}$`, 'i') },
+      storeContractAddress: { $regex: new RegExp(`^${normAddr(storeAddress)}$`, 'i') },
+    }).lean();
+
+    return res.json({ isRegistered: !!client, clientData: client || null });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return res.status(500).json({ error: error.message });
   }
 });
 
+
 // --- מחיקת הרשמה מאובטחת (חתימה + Timestamp) ---
 app.post('/api/unregister', async (req, res) => {
-    const { walletAddress, signature, timestamp } = req.body;
+  const { walletAddress, storeAddress, signature, timestamp } = req.body;
 
-    if (!walletAddress || !signature || !timestamp) {
-        return res.status(400).json({ error: 'Missing parameters' });
+  if (!walletAddress || !storeAddress || !signature || !timestamp) {
+    return res.status(400).json({ error: 'Missing parameters' });
+  }
+
+  try {
+    const wallet = normAddr(walletAddress);
+    const store = normAddr(storeAddress);
+
+    const ts = Number(timestamp);
+    if (!Number.isFinite(ts)) {
+      return res.status(400).json({ error: 'Invalid timestamp' });
     }
 
-    try {
-        // 1. בדיקת זמנים - למנוע Replay Attack (חלון של 5 דקות)
-        const timeDiff = Math.abs(Date.now() - timestamp);
-        if (timeDiff > 5 * 60 * 1000) {
-            return res.status(400).json({ error: 'Signature expired' });
-        }
-
-        // 2. שחזור הכתובת מהחתימה
-        const message = `I confirm that I want to delete my account: ${walletAddress.toLowerCase()} at ${timestamp}`;
-        const recoveredAddress = ethers.verifyMessage(message, signature);
-
-        // 3. אימות שהחותם הוא הבעלים
-        if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
-            return res.status(401).json({ error: 'Invalid signature. You are not the owner.' });
-        }
-
-        // 4. ביצוע המחיקה
-        const result = await Client.deleteMany({
-            walletAddress: { $regex: new RegExp('^' + walletAddress + '$', 'i') }
-        });
-
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        console.log(`User ${walletAddress} securely unregistered.`);
-        res.json({ success: true });
-
-    } catch (error) {
-        console.error('Unregister error:', error);
-        res.status(500).json({ error: 'Server error' });
+    // 1) Time window (5 minutes)
+    const timeDiff = Math.abs(Date.now() - ts);
+    if (timeDiff > 5 * 60 * 1000) {
+      return res.status(400).json({ error: 'Signature expired' });
     }
+
+    // 2) Recover signer from signature (bind storeAddress too)
+    const message = `I confirm that I want to delete my account: ${wallet} in store: ${store} at ${ts}`;
+    const recoveredAddress = normAddr(ethers.verifyMessage(message, signature));
+
+    // 3) Verify signer is the wallet owner
+    if (recoveredAddress !== wallet) {
+      return res.status(401).json({ error: 'Invalid signature. You are not the owner.' });
+    }
+
+    // 4) Delete ONLY for this store (because DB is wallet+store unique)
+    const result = await Client.deleteMany({
+      walletAddress: { $regex: new RegExp(`^${wallet}$`, 'i') },
+      storeContractAddress: { $regex: new RegExp(`^${store}$`, 'i') },
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'User not found for this store' });
+    }
+
+    console.log(`User ${wallet} securely unregistered from store ${store}.`);
+    return res.json({ success: true, deletedCount: result.deletedCount });
+  } catch (error) {
+    console.error('Unregister error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
 });
+
 
 // --- API לשמירת הזמנה מיידית מהפרונט (Snapshot) ---
 app.post('/api/register-order', async (req, res) => {
@@ -985,8 +1027,8 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const existingClient = await Client.findOne({ 
-        walletAddress: { $regex: new RegExp('^' + walletAddress + '$', 'i') },
-        storeContractAddress: { $regex: new RegExp('^' + storeAddress + '$', 'i') }
+        walletAddress: { $regex: new RegExp('^' + normAddr(walletAddress) + '$', 'i') },
+        storeContractAddress: { $regex: new RegExp('^' + normAddr(storeAddress) + '$', 'i') }
     });
 
     let shouldSendEmail = true;
@@ -1338,6 +1380,45 @@ async function processAllContracts() {
   }
 }
 
+async function refreshInitializeServerAndProcess() {
+  if (refreshingConfigs) {
+    console.log("⏳ Refresh already running, skipping...");
+    return;
+  }
+
+  refreshingConfigs = true;
+
+  try {
+    console.log("🔄 Refreshing (initializeServer) + syncing contracts list...");
+
+    await initializeServer(eventHandlers);
+    console.log("✅ initializeServer refreshed.");
+
+    // Re-read contracts after initializeServer regenerated config
+    const contracts = getContracts();
+    if (!contracts || !Array.isArray(contracts)) {
+      throw new Error("getContracts() returned no configs");
+    }
+
+    // For each contract: process historical + subscribe (subscribe guarded)
+    for (const contractConfig of contracts) {
+      await processHistoricalEvents(contractConfig);
+      subscribeToContractEvents(contractConfig);
+    }
+
+    console.log(`✅ Refresh done. Contracts seen: ${contracts.length}`);
+  } catch (e) {
+    console.error("❌ Refresh failed:", e);
+  } finally {
+    refreshingConfigs = false;
+  }
+}
+
+setInterval(() => {
+  refreshInitializeServerAndProcess().catch((e) => console.error("Refresh interval error:", e));
+}, CONFIG_REFRESH_MS);
+
+
 async function processEvent(event, contractConfig) {
   const key = getEventKeyFromAny(event);
 
@@ -1361,31 +1442,47 @@ async function processEvent(event, contractConfig) {
 }
 
 function subscribeToContractEvents(contractConfig) {
-    const contract = new web3.eth.Contract(contractConfig.abi, contractConfig.address);
-    const handlerEventNames = Object.keys(contractConfig.eventHandlers || {});
+  const addr = String(contractConfig.address || "").toLowerCase();
+  if (!addr) return;
 
-    console.log(
-        `Subscribing to ${handlerEventNames.length} handler events for ${contractConfig.address}`
-    );
+  if (activeSubscriptions.has(addr)) {
+    console.log(`Already subscribed: ${addr}`);
+    return;
+  }
 
-    for (const eventName of handlerEventNames) {
-        const evFn = contract.events[eventName];
-        if (typeof evFn !== 'function') continue;
+  const contract = new web3.eth.Contract(contractConfig.abi, contractConfig.address);
+  const handlerEventNames = Object.keys(contractConfig.eventHandlers || {});
 
-        evFn.call(contract.events, { fromBlock: 'latest' })
-            .on('data', async (event) => {
-                try {
-                    console.log(`New real-time event: ${event.event} tx=${event.transactionHash}`);
-                    await processEvent(event, contractConfig);
-                } catch (e) {
-                    console.error(`Error processing realtime event ${eventName}:`, e);
-                }
-            })
-            .on('error', (error) => {
-                console.error(`Error in event subscription (${eventName}):`, error);
-            });
-    }
+  console.log(
+    `Subscribing to ${handlerEventNames.length} handler events for ${contractConfig.address}`
+  );
+
+  const subs = [];
+
+  for (const eventName of handlerEventNames) {
+    const evFn = contract.events[eventName];
+    if (typeof evFn !== "function") continue;
+
+    const sub = evFn
+      .call(contract.events, { fromBlock: "latest" })
+      .on("data", async (event) => {
+        try {
+          console.log(`New real-time event: ${event.event} tx=${event.transactionHash}`);
+          await processEvent(event, contractConfig);
+        } catch (e) {
+          console.error(`Error processing realtime event ${eventName}:`, e);
+        }
+      })
+      .on("error", (error) => {
+        console.error(`Error in event subscription (${eventName}):`, error);
+      });
+
+    subs.push(sub);
+  }
+
+  activeSubscriptions.set(addr, subs);
 }
+
 
 // --- Event Handlers (Using Resend) ---
 
@@ -1750,19 +1847,17 @@ setTimeout(async () => {
     }
 }, RESTART_INTERVAL);
 
-app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-  console.log('Starting Web3 Event Listeners...');
+app.listen(PORT, "0.0.0.0", async () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log("Starting Web3 Event Listeners...");
 
-  initializeServer(eventHandlers)
-    .then(async () => {
-      console.log('✅ Web3 Listeners Initialized.');
-      await processAllContracts();
-      console.log('✅ Historical Events Processed.');
-    })
-    .catch((error) => {
-      console.error('❌ Error initializing Web3 server:', error);
-    });
+  try {
+    await refreshInitializeServerAndProcess(); // initial boot run
+    console.log("✅ Web3 Listeners Initialized (initial).");
+  } catch (error) {
+    console.error("❌ Error initializing Web3 server:", error);
+  }
 });
+
 
 module.exports = { eventHandlers };

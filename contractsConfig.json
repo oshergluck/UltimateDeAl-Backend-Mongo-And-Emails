@@ -2243,6 +2243,19 @@
     "companyName": "UltraShop",
     "companyEmail": "spitfire520@gmail.com",
     "companyUrl": "ultrashop",
+    "picture": "bafybeibgyr3rw7ifj5czitlcvwzw3rzxozyh4se5navg2cmqebiojwp4cm",
+    "description": "Official Shop\n🪙 Get the spotlight your project deserves!\n✨ Buy custom subdomains for your brand\n🚀 Promote your crowdfunding campaign\n⭐ Feature your project on our homepage",
+    "category": "Official",
+    "creationDate": "1768686029",
+    "expirationDate": "9",
+    "promotionExpirationDate": "53112226453511149076780361251603772674287490154922408279108961575132834299904",
+    "hidden": false,
+    "city": "Haifa",
+    "storeOwner": "0xBDEda0d0a434C2C21ED532Bc64aDE1a136b65847",
+    "votingSystemAddress": "0x83AC2CD1F18D8c3826571E084Df0718952473ffF",
+    "ERCUltra": "0x18B67Dd7409d3a3F4f3dde7a6a01C4DB4B9BA5cD",
+    "invoicesOfStore": "0x7C14154C6fd0636742344D5Ee69297bDC2218ceb",
+    "encrypted": true,
     "eventHandlers": {}
   }
 ]
