@@ -271,13 +271,14 @@ const StoreSchema = new mongoose.Schema({
   ownerAddress: String,
   passwordHash: String,
   registeredAt: { type: Date, default: Date.now },
-
-  // pending password flow
-  pendingPasswordEnc: String,   // encrypted raw password (temporary)
-  pendingTokenEnc: String,      // encrypted token (so you can return it again)
-  pendingTokenHash: String,     // sha256(token)
-  pendingExpiresAt: Date,       // TTL
-  passwordClaimedAt: Date,      // once claimed -> never show again
+  webhookUrl: { type: String }, // <--- הוסף שדה זה
+  
+  // pending password flow... (השאר את השאר אותו דבר)
+  pendingPasswordEnc: String,
+  pendingTokenEnc: String,
+  pendingTokenHash: String,
+  pendingExpiresAt: Date,
+  passwordClaimedAt: Date,
 });
 
 
@@ -309,9 +310,67 @@ function decryptText(b64) {
   return dec.toString('utf8');
 }
 
+// פונקציית עזר לשליחת וובהוק
+async function dispatchWebhook(storeAddress, eventType, payload) {
+  try {
+      // מציאת החנות וה-URL שלה
+      const store = await Store.findOne({ 
+          smartContractAddress: { $regex: new RegExp(`^${normAddr(storeAddress)}$`, 'i') } 
+      });
+
+      if (store && store.webhookUrl) {
+          console.log(`🚀 Triggering Webhook for ${storeAddress} [${eventType}]`);
+          
+          // שליחת המידע
+          await axios.post(store.webhookUrl, {
+              event: eventType,
+              timestamp: Date.now(),
+              store: storeAddress,
+              data: payload
+          }, { timeout: 5000 }); // Timeout של 5 שניות שלא יתקע את השרת
+      }
+  } catch (error) {
+      console.error(`❌ Webhook failed for ${storeAddress}:`, error.message);
+  }
+}
+
 function normStoreKey(s) {
   return String(s || '').trim().toLowerCase()
 }
+
+// --- הגדרת Webhook לחנות ---
+app.post("/api/store/set-webhook", requireAdminAuth, async (req, res) => {
+  try {
+      const { webhookUrl } = req.body;
+      const storeAddress = req.admin.storeAddress;
+
+      // עדכון כתובת ה-Webhook ב-DB
+      await Store.findOneAndUpdate(
+          { smartContractAddress: { $regex: new RegExp(`^${normAddr(storeAddress)}$`, 'i') } },
+          { webhookUrl: webhookUrl },
+          { upsert: true }
+      );
+
+      return res.json({ success: true, message: "Webhook updated successfully" });
+  } catch (e) {
+      console.error("set-webhook error:", e);
+      return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// --- שליפת ה-Webhook הנוכחי (כדי להציג למנהל) ---
+app.post("/api/store/get-webhook", requireAdminAuth, async (req, res) => {
+  try {
+      const storeAddress = req.admin.storeAddress;
+      const store = await Store.findOne({ 
+          smartContractAddress: { $regex: new RegExp(`^${normAddr(storeAddress)}$`, 'i') } 
+      });
+
+      return res.json({ success: true, webhookUrl: store?.webhookUrl || "" });
+  } catch (e) {
+      return res.status(500).json({ success: false, error: "Server error" });
+  }
+});
 
 
 // --- Schema חדשה להזמנות (CQRS) ---
@@ -1075,6 +1134,7 @@ app.post('/api/register', async (req, res) => {
 Thank you for registering with ${contractConfig.companyName}. Here are your details:
 Address: ${physicalAddress}
 Phone: ${phone}
+Wallet: ${walletAddress}
 
 If you need any assistance, send email to support@ultrashop.tech.
 
@@ -1101,7 +1161,13 @@ Wallet: ${walletAddress}
         console.error('Error triggering registration emails:', emailError);
       }
     }
-
+    dispatchWebhook(storeAddress, 'new_client', {
+      name,
+      email,
+      phone,
+      physicalAddress,
+      walletAddress
+  });
     res.json({ success: true, client: newClient });
   } catch (error) {
     console.error(error);
@@ -1621,6 +1687,25 @@ Shipping Address: ${client.physicalAddress || ''}
 Best regards,
 ${contractConfig.companyName} Team`
     );
+
+    await dispatchWebhook(contractConfig.address, 'new_order', {
+      // פרטי העסקה
+      receiptId: Number(eventData.receiptId),
+      productBarcode: eventData.productBarcode,
+      productName: (eventData.ProductDesc || eventData.description || '').replace(/[$~*^]/g, ''),
+      price: Number(eventData.amountPaid) / 1e6,
+      transactionHash: eventData.transactionHash,
+      timestamp: Date.now(),
+
+      // פרטי הלקוח (אם קיים ב-DB)
+      customer: {
+          wallet: walletToSearch,
+          name: client?.name || "Unknown",
+          email: client?.email || "Unknown",
+          phone: client?.phone || "Unknown",
+          physicalAddress: client?.physicalAddress || "Unknown"
+      }
+  });
 
   } catch (error) {
     console.error('handleProductSales error:', error);
